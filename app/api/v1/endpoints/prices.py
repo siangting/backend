@@ -6,7 +6,7 @@ from ....schemas import NecessityPrice
 router = APIRouter()
 
 @router.get("/necessities-price", response_model=List[NecessityPrice])
-def read_necessities_prices(category: Optional[str] = Query(None), commodity: Optional[str] = Query(None)):
+def get_necessities_prices(category: Optional[str] = Query(None), commodity: Optional[str] = Query(None)):
     try:
         response = requests.get(
             "https://opendata.ey.gov.tw/api/ConsumerProtection/NecessitiesPrice",
