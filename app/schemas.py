@@ -8,3 +8,15 @@ class NecessityPrice(BaseModel):
     統計值: str
     時間起點: str
     時間終點: str
+
+class NewsArticleSchema(BaseModel):
+    id: int
+    url: str
+    title: str
+    time: str
+    content: str
+    summary: str
+    reason: str
+
+    class Config:
+        from_attributes = True

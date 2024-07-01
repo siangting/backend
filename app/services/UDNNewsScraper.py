@@ -3,11 +3,14 @@ from .base_scraper import BaseScraper
 from bs4 import BeautifulSoup
 
 class UDNNewsScraper(BaseScraper):
-    def fetch_news_data(self, search_term):
+    def __init__(self):
+        self.base_url = "https://udn.com/api/more"
+
+    def fetch_news_data(self):
         all_news_data = []
         #iterate 3 pages to get more news data
         for page in range(3):
-            news_data = self.custom_fetch_news_data(page, search_term)
+            news_data = self.custom_fetch_news_data(page, '價格')
             all_news_data.extend(news_data)
         return all_news_data
 

@@ -12,12 +12,11 @@ class NewsArticle(Base):
     title = Column(String, nullable=False)
     time = Column(String, nullable=False)
     content = Column(Text, nullable=False)
+    summary = Column(Text, nullable=False)
+    reason = Column(Text, nullable=False)
 
-# 创建数据库连接引擎
 engine = create_engine('sqlite:///news_database.db', echo=True)
 
-# 创建表
 Base.metadata.create_all(engine)
 
-# 创建会话
 Session = sessionmaker(bind=engine)
