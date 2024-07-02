@@ -20,3 +20,6 @@ class NewsArticleSchema(BaseModel):
 
     class Config:
         from_attributes = True
+
+class PromptRequest(BaseModel):
+    prompt: str

@@ -1,27 +1,33 @@
 import requests
 from .base_scraper import BaseScraper
 from bs4 import BeautifulSoup
+from urllib.parse import quote
+
 
 class UDNNewsScraper(BaseScraper):
     def __init__(self):
-        self.base_url = "https://udn.com/api/more"
+        super().__init__('https://udn.com/api/more')
 
-    def fetch_news_data(self):
+    def fetch_news_data(self, search_term, is_initial=False):
         all_news_data = []
-        #iterate 3 pages to get more news data
-        for page in range(3):
-            news_data = self.custom_fetch_news_data(page, '價格')
-            all_news_data.extend(news_data)
+        #iterate pages to get more news data, not actually get all news data
+        if is_initial:
+            for page in range(1,10):
+                news_data = self.update_recent_news(page, search_term)
+                all_news_data.extend(news_data)
+        else:
+            all_news_data = self.update_recent_news(1, search_term)
         return all_news_data
 
-    def custom_fetch_news_data(self, page, search_term):
+    def update_recent_news(self, page, search_term):
         try:
             params = {
                 'page': page,
-                'id': f'search:{search_term}',
+                'id': f'search:{quote(search_term)}',
                 'channelId': 2,
                 'type': 'searchword'
             }
+            print(params)
             response = requests.get(self.base_url, params=params)
             return response.json()['lists'] if response.status_code == 200 else []
         except Exception as e:

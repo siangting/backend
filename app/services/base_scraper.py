@@ -2,17 +2,17 @@ from abc import ABC, abstractmethod
 from ..models import NewsArticle, Session
 
 class BaseScraper(ABC):
-    def __init__(self):
-        self.base_url = ""
+    def __init__(self, base_url):
+        self.base_url = base_url
 
     @abstractmethod
-    def fetch_news_data(self):
-        pass
+    def fetch_news_data(self, search_term, is_initial=False):
+        raise NotImplementedError
 
     @abstractmethod
     def news_parser(self, news_url):
-        pass
-    
+        raise NotImplementedError
+
     def save_news_content(self, news_data):
         session = Session()
         exists = session.query(NewsArticle).filter_by(url=news_data['url']).first() is not None
