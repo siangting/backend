@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from ....schemas import NewsArticleSchema, PromptRequest
+from ....schemas import NewsArticleSchema, PromptRequest, SearchNewsArticleSchema, NewsSummarySchema, NewsSumaryRequestSchema
 from sqlalchemy.orm import Session
 from ....models import NewsArticle, engine
 from ....services.openai_client import openai_client
@@ -20,7 +20,7 @@ def read_news():
     finally:
         session.close()
 
-@router.post("/search_news", response_model=list[NewsArticleSchema])
+@router.post("/search_news", response_model=list[SearchNewsArticleSchema])
 async def search_news(request: PromptRequest):
     prompt = request.prompt
     news_list = []
@@ -35,15 +35,14 @@ async def search_news(request: PromptRequest):
             try:
                 detailed_news = udn_scraper.news_parser(news['titleLink'])
                 if detailed_news:
-                    result = openai_client.generate_summary(' '.join(detailed_news['content']))
-                    print(result)
-                    if result:
-                        result = json.loads(result)
-                        detailed_news['summary'] = result['影響']
-                        detailed_news['reason'] = result['原因']
-                        detailed_news['content'] = ' '.join(detailed_news['content'])
-                        detailed_news['id'] = next(_id_counter)
-                        news_list.append(detailed_news)
+                    # result = openai_client.generate_summary(' '.join(detailed_news['content']))
+                    # if result:
+                        # result = json.loads(result)
+                        # detailed_news['summary'] = result['影響']
+                        # detailed_news['reason'] = result['原因']
+                    detailed_news['content'] = ' '.join(detailed_news['content'])
+                    detailed_news['id'] = next(_id_counter)
+                    news_list.append(detailed_news)
             except Exception as e:
                 print(f"Error processing news {news['titleLink']}: {e}")
         return sorted(news_list, key=lambda x: x['time'], reverse=True)
@@ -51,3 +50,18 @@ async def search_news(request: PromptRequest):
     except Exception as e:
         print('Error during process news: ', e)
         return []
+
+@router.post("/news_summary", response_model=NewsSummarySchema)
+def news_summary(payload: NewsSumaryRequestSchema):
+    content = payload.content
+    response = {}
+    try:
+        result = openai_client.generate_summary(content)
+        if result:
+            result = json.loads(result)
+            response['summary'] = result['影響']
+            response['reason'] = result['原因']
+        return response
+    except Exception as e:
+        print('Error during process news summary: ', e)
+        return {}

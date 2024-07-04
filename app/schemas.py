@@ -21,5 +21,19 @@ class NewsArticleSchema(BaseModel):
     class Config:
         from_attributes = True
 
+class SearchNewsArticleSchema(BaseModel):
+    id: int
+    url: str
+    title: str
+    time: str
+    content: str
+
+class NewsSummarySchema(BaseModel):
+    summary: str
+    reason: str
+
+class NewsSumaryRequestSchema(BaseModel):
+    content: str
+
 class PromptRequest(BaseModel):
     prompt: str
