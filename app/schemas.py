@@ -37,3 +37,17 @@ class NewsSumaryRequestSchema(BaseModel):
 
 class PromptRequest(BaseModel):
     prompt: str
+
+
+class TokenSchema(BaseModel):
+    access_token: str
+    token_type: str
+
+class UserSchema(BaseModel):
+    username: str
+    class Config:
+        from_attributes = True
+
+class UserAuthSchema(BaseModel):
+    username: str
+    password: str

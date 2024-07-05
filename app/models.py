@@ -5,6 +5,13 @@ from sqlalchemy.orm import sessionmaker
 
 Base = declarative_base()
 
+class User(Base):
+    __tablename__ = 'users'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(50), unique=True, nullable=False)
+    hashed_password = Column(String(200), nullable=False)
+
 class NewsArticle(Base):
     __tablename__ = 'news_articles'
     id = Column(Integer, primary_key=True, autoincrement=True)
