@@ -49,7 +49,7 @@ def start_scheduler():
         #should change into simple factory pattern
         fetch_news_task(is_initial=True)
     db.close()
-    scheduler.add_job(fetch_news_task, 'interval', minutes=10)
+    scheduler.add_job(fetch_news_task, 'interval', minutes=100)
     scheduler.start()
 
 @app.on_event("shutdown")

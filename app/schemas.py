@@ -17,6 +17,8 @@ class NewsArticleSchema(BaseModel):
     content: str
     summary: str
     reason: str
+    upvotes: int
+    is_upvoted: bool
 
     class Config:
         from_attributes = True

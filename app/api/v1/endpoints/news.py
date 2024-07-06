@@ -1,9 +1,11 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
 from ....schemas import NewsArticleSchema, PromptRequest, SearchNewsArticleSchema, NewsSummarySchema, NewsSumaryRequestSchema
 from sqlalchemy.orm import Session
-from ....models import NewsArticle, engine
+from sqlalchemy import select, delete, insert
+from ....models import NewsArticle, User, engine, user_news_association_table
 from ....services.openai_client import openai_client
 from ....services import UDNNewsScraper
+from .users import authenticate_user_token
 import json
 import itertools
 
@@ -11,14 +13,50 @@ router = APIRouter()
 udn_scraper = UDNNewsScraper.UDNNewsScraper()
 _id_counter = itertools.count(start=1000000)  # 從1000000開始以避免與現有的DB ID衝突
 
-@router.get("/news", response_model=list[NewsArticleSchema])  # 使用 Pydantic 模型
-def read_news():
+
+def get_db():
     session = Session(bind=engine)
     try:
-        news_list = session.query(NewsArticle).order_by(NewsArticle.time.desc()).all()
-        return news_list
+        yield session
     finally:
         session.close()
+
+def get_article_upvote_details(article_id, user_id, db):
+    upvote_count = db.query(user_news_association_table).filter_by(news_articles_id=article_id).count()
+    is_upvoted = False
+    if user_id:
+        is_upvoted = db.query(user_news_association_table).filter_by(news_articles_id=article_id, user_id=user_id).first() is not None
+    return upvote_count, is_upvoted
+
+
+@router.get("/news", response_model=list[NewsArticleSchema])
+def read_news(db: Session = Depends(get_db)):
+    try:
+        news_list = db.query(NewsArticle).order_by(NewsArticle.time.desc()).all()
+        result = []
+        for news in news_list:
+            upvotes, is_upvoted = get_article_upvote_details(news.id, None, db)
+            result.append({
+                **news.__dict__,
+                "upvotes": upvotes,
+                "is_upvoted": is_upvoted
+            })        
+        return result
+    finally:
+        db.close()
+
+@router.get("/user_news", response_model=list[NewsArticleSchema], description="獲取包含user upvote資訊的新聞列表")
+def read_user_news(db: Session = Depends(get_db), user: User = Depends(authenticate_user_token)):
+    news_items = db.query(NewsArticle).order_by(NewsArticle.time.desc()).all()
+    result = []
+    for article in news_items:
+        upvote_count, is_upvoted = get_article_upvote_details(article.id, user.id, db)
+        result.append({
+            **article.__dict__,
+            "upvotes": upvote_count,
+            "is_upvoted": is_upvoted,
+        })
+    return result
 
 @router.post("/search_news", response_model=list[SearchNewsArticleSchema])
 async def search_news(request: PromptRequest):
@@ -26,7 +64,6 @@ async def search_news(request: PromptRequest):
     news_list = []
     try:
         keywords = openai_client.extract_search_keywords(prompt)
-        print(keywords)
         if not keywords:
             return []
         #should change into simple factory pattern
@@ -35,11 +72,6 @@ async def search_news(request: PromptRequest):
             try:
                 detailed_news = udn_scraper.news_parser(news['titleLink'])
                 if detailed_news:
-                    # result = openai_client.generate_summary(' '.join(detailed_news['content']))
-                    # if result:
-                        # result = json.loads(result)
-                        # detailed_news['summary'] = result['影響']
-                        # detailed_news['reason'] = result['原因']
                     detailed_news['content'] = ' '.join(detailed_news['content'])
                     detailed_news['id'] = next(_id_counter)
                     news_list.append(detailed_news)
@@ -52,7 +84,7 @@ async def search_news(request: PromptRequest):
         return []
 
 @router.post("/news_summary", response_model=NewsSummarySchema)
-def news_summary(payload: NewsSumaryRequestSchema):
+def news_summary(payload: NewsSumaryRequestSchema, user=Depends(authenticate_user_token)):
     content = payload.content
     response = {}
     try:
@@ -65,3 +97,42 @@ def news_summary(payload: NewsSumaryRequestSchema):
     except Exception as e:
         print('Error during process news summary: ', e)
         return {}
+
+@router.post("/{news_id}/upvote")
+def upvote_article(news_id: int, db: Session = Depends(get_db), user: User = Depends(authenticate_user_token)):
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    if not check_article_exists(news_id, db):
+        raise HTTPException(status_code=404, detail="News not found")
+
+    message = toggle_upvote(news_id, user.id, db)
+    return {"message": message}
+
+def toggle_upvote(news_id: int, user_id: int, db: Session):
+    existing_upvote = db.execute(
+        select(user_news_association_table).where(
+            user_news_association_table.c.news_articles_id == news_id,
+            user_news_association_table.c.user_id == user_id
+        )
+    ).scalar()
+
+    if existing_upvote:
+        delete_stmt = delete(user_news_association_table).where(
+            user_news_association_table.c.news_articles_id == news_id,
+            user_news_association_table.c.user_id == user_id
+        )
+        db.execute(delete_stmt)
+        db.commit()
+        return "Upvote removed"
+    else:
+        insert_stmt = insert(user_news_association_table).values(
+            news_articles_id=news_id,
+            user_id=user_id
+        )
+        db.execute(insert_stmt)
+        db.commit()
+        return "Article upvoted"
+
+def check_article_exists(news_id: int, db: Session):
+    return db.query(NewsArticle).filter_by(id=news_id).first() is not None

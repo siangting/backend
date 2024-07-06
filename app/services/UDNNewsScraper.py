@@ -27,7 +27,6 @@ class UDNNewsScraper(BaseScraper):
                 'channelId': 2,
                 'type': 'searchword'
             }
-            print(params)
             response = requests.get(self.base_url, params=params)
             return response.json()['lists'] if response.status_code == 200 else []
         except Exception as e:
