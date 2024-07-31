@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 
+
 class NecessityPrice(BaseModel):
     類別: str
     編號: int
@@ -8,6 +9,7 @@ class NecessityPrice(BaseModel):
     統計值: str
     時間起點: str
     時間終點: str
+
 
 class NewsArticleSchema(BaseModel):
     id: int
@@ -23,6 +25,7 @@ class NewsArticleSchema(BaseModel):
     class Config:
         from_attributes = True
 
+
 class SearchNewsArticleSchema(BaseModel):
     id: int
     url: str
@@ -30,12 +33,15 @@ class SearchNewsArticleSchema(BaseModel):
     time: str
     content: str
 
+
 class NewsSummarySchema(BaseModel):
     summary: str
     reason: str
 
+
 class NewsSumaryRequestSchema(BaseModel):
     content: str
+
 
 class PromptRequest(BaseModel):
     prompt: str
@@ -45,10 +51,13 @@ class TokenSchema(BaseModel):
     access_token: str
     token_type: str
 
+
 class UserSchema(BaseModel):
     username: str
+
     class Config:
         from_attributes = True
+
 
 class UserAuthSchema(BaseModel):
     username: str

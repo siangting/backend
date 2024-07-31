@@ -1,13 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Security
-from sqlalchemy.orm import Session
-from passlib.context import CryptContext
-from jose import jwt, JWTError
-from datetime import datetime, timedelta
-from ....models import User, engine
-from ....schemas import TokenSchema, UserSchema, UserAuthSchema
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import os
+from datetime import datetime, timedelta
 
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from sqlalchemy.orm import Session
+
+from ....models import User, engine
+from ....schemas import TokenSchema, UserAuthSchema, UserSchema
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -26,11 +27,14 @@ def get_db():
     finally:
         db.close()
 
+
 def get_user(db: Session, username: str):
     return db.query(User).filter(User.username == username).first()
 
+
 def verify_password(plain_password: str, hashed_password: str):
     return pwd_context.verify(plain_password, hashed_password)
+
 
 def authenticate_user(db: Session, username: str, password: str):
     user = get_user(db, username)
@@ -38,7 +42,10 @@ def authenticate_user(db: Session, username: str, password: str):
         return False
     return user
 
-def authenticate_user_token(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+
+def authenticate_user_token(
+    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
+):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -65,11 +72,15 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     else:
         expire = datetime.utcnow() + timedelta(minutes=15)
     to_encode.update({"exp": expire})
+    print(to_encode)
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+
 @router.post("/login", response_model=TokenSchema)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+async def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+):
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
@@ -79,9 +90,10 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
+        data={"sub": str(user.username)}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
 
 @router.post("/register", response_model=UserSchema)
 def create_user(user: UserAuthSchema, db: Session = Depends(get_db)):
@@ -95,7 +107,7 @@ def create_user(user: UserAuthSchema, db: Session = Depends(get_db)):
     db.refresh(db_user)
     return db_user
 
+
 @router.get("/me", response_model=UserSchema)
 def read_users_me(user: str = Depends(authenticate_user_token)):
     return {"username": user.username}
-

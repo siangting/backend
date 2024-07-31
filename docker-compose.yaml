@@ -1,0 +1,6 @@
+ lint-and-format:
+   build:
+     context: .
+   command: ["./lint_and_format.sh"]
+   volumes:
+     - .:/workspace
