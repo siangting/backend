@@ -7,15 +7,9 @@ from sqlalchemy.orm import Session
 
 from .exceptions import DomainMismatchException
 
-Headline = namedtuple(
-    typename='NewsTitle',
-    field_names=['title', 'url']
-)
+Headline = namedtuple(typename="NewsTitle", field_names=["title", "url"])
 
-News = namedtuple(
-    typename='News',
-    field_names=['title', 'url', 'time', 'content']
-)
+News = namedtuple(typename="News", field_names=["title", "url", "time", "content"])
 
 
 class NewsScraperBase(metaclass=abc.ABCMeta):
@@ -23,7 +17,9 @@ class NewsScraperBase(metaclass=abc.ABCMeta):
     news_website_news_child_urls: list[AnyHttpUrl | str]
 
     @abc.abstractmethod
-    def get_headline(self, search_term: str, page: int | tuple[int, int]) -> list[Headline]:
+    def get_headline(
+        self, search_term: str, page: int | tuple[int, int]
+    ) -> list[Headline]:
         """
         Searches for news headlines on the news website based on a given search term and returns a list of headlines.
 

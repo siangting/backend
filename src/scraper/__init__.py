@@ -1,1 +1,1 @@
-__all__ = ['udn_scraper']
+__all__ = ["udn_scraper"]

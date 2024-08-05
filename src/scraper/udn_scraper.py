@@ -27,14 +27,20 @@ class UDNScraper(NewsScraperBase):
         """
         return self.get_headline(search_term, page=(1, 10))
 
-    def get_headline(self, search_term: str, page: int | tuple[int, int]) -> list[Headline]:
+    def get_headline(
+        self, search_term: str, page: int | tuple[int, int]
+    ) -> list[Headline]:
 
         # Calculate the range of pages to fetch news from.
         # If 'page' is a tuple, unpack it and create a range representing those pages (inclusive).
         # If 'page' is an int, create a list containing only that single page number.
         page_range = range(*page) if isinstance(page, tuple) else [page]
 
-        headlines = [headline for p in page_range for headline in self._fetch_news(p, search_term)]
+        headlines = [
+            headline
+            for p in page_range
+            for headline in self._fetch_news(p, search_term)
+        ]
 
         return headlines
 
@@ -54,7 +60,9 @@ class UDNScraper(NewsScraperBase):
 
     def _perform_request(self, params: dict):
         try:
-            response = requests.get(self.news_website_url, params=params, timeout=self.timeout)
+            response = requests.get(
+                self.news_website_url, params=params, timeout=self.timeout
+            )
             response.raise_for_status()
             return response
         except requests.RequestException as e:
@@ -63,7 +71,10 @@ class UDNScraper(NewsScraperBase):
     @staticmethod
     def _parse_headlines(response):
         data = response.json().get("lists", [])
-        return [Headline(title=article["title"], url=article["titleLink"]) for article in data]
+        return [
+            Headline(title=article["title"], url=article["titleLink"])
+            for article in data
+        ]
 
     def parse(self, url: str) -> News:
         if not self._is_valid_url(url):
@@ -76,13 +87,19 @@ class UDNScraper(NewsScraperBase):
     def _extract_news(soup, url: str) -> News:
         title = soup.select_one("h1.article-content__title").text
         time = soup.select_one("time.article-content__time").text
-        content = " ".join(p.text for p in soup.select("section.article-content__editor p") if p.text.strip())
+        content = " ".join(
+            p.text
+            for p in soup.select("section.article-content__editor p")
+            if p.text.strip()
+        )
         return News(url=url, title=title, time=time, content=content)
 
     def save(self, news: News, db: Session):
         existing_news = db.query(News).filter_by(url=news.url).first()
         if not existing_news:
-            new_article = NewsArticle(url=news.url, title=news.title, time=news.time, content=news.content)
+            new_article = NewsArticle(
+                url=news.url, title=news.title, time=news.time, content=news.content
+            )
             db.add(new_article)
             self._commit_changes(db)
 
