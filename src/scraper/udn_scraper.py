@@ -15,7 +15,16 @@ class UDNScraper(NewsScraperBase):
         self.news_website_url = "https://udn.com/api/more"
         self.timeout = timeout
 
-    def startup(self, search_term: str):
+    def startup(self, search_term: str) -> list[Headline]:
+        """
+        Initializes the application by fetching news headlines for a given search term across multiple pages.
+        This method is typically called at the beginning of the program when there is no data available,
+        hence it fetches headlines from the first 10 pages.
+
+        :param search_term: The term to search for in news headlines.
+        :return: A list of Headline namedtuples containing the title and URL of news articles.
+        :rtype: list[Headline]
+        """
         return self.get_headline(search_term, page=(1, 10))
 
     def get_headline(self, search_term: str, page: int | tuple[int, int]) -> list[Headline]:
@@ -29,9 +38,10 @@ class UDNScraper(NewsScraperBase):
         return self._parse_headlines(response) if response else []
 
     def _create_search_params(self, page: int, search_term: str):
+        quote_search_term = quote(search_term)
         return {
             "page": page,
-            "id": f"search:{quote(search_term)}",
+            "id": f"search:{quote_search_term}",
             "channelId": self.CHANNEL_ID,
             "type": "searchword",
         }
