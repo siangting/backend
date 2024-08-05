@@ -1,0 +1,92 @@
+import abc
+from collections import namedtuple
+
+from pydantic import AnyHttpUrl
+from tldextract import tldextract
+from sqlalchemy.orm import Session
+
+from .exceptions import DomainMismatchException
+
+Headline = namedtuple(
+    typename='NewsTitle',
+    field_names=['title', 'url']
+)
+
+News = namedtuple(
+    typename='News',
+    field_names=['title', 'url', 'time', 'content']
+)
+
+
+class NewsScraperBase(metaclass=abc.ABCMeta):
+    news_website_url: AnyHttpUrl | str
+    news_website_news_child_urls: list[AnyHttpUrl | str]
+
+    @abc.abstractmethod
+    def get_headline(self, search_term: str, page: int | tuple[int, int]) -> list[Headline]:
+        """
+        Searches for news headlines on the news website based on a given search term and returns a list of headlines.
+
+        This method searches through the entire news_website_url using the specified search term, and returns a list
+        of Headline namedtuples, where each Headline includes the title and URL of a news article. The page parameter
+        can be an integer representing a single page number or a tuple representing a range of page numbers to search
+        through. The offset and limit parameters apply to the resulting list of headlines, allowing you to skip a
+        certain number of headlines and limit the number of headlines returned, respectively.
+
+        :param search_term: A search term to search for news articles.
+        :param page: A page number (int) or a tuple of start and end page numbers (tuple[int, int]).
+        # :param offset: The number of headlines to skip from the beginning of the list.
+        # :param limit: The maximum number of headlines to return.
+        :return: A list of Headline namedtuple  s, each containing a title and a URL.
+        """
+        return NotImplemented
+
+    @abc.abstractmethod
+    def parse(self, url: AnyHttpUrl | str) -> News:
+        """
+        Given a news URL from the news website, fetch and parse the detailed news content.
+
+        This method takes a URL that belongs to a news article on the news_website_url, retrieves the full content of
+        the news article, and returns it in the form of a News namedtuple. The News namedtuple includes the title,
+        URL, publication time, and content of the news article.
+
+        :param url: The URL of the news article to be fetched and parsed.
+        :return: A News namedtuple containing the title, URL, time, and content of the news article.
+        """
+
+        # Check if the URL belongs to the allowed news website or its child URLs
+        if not self._is_valid_url(url):
+            raise DomainMismatchException(url)
+
+        return NotImplemented
+
+    @staticmethod
+    def save(news: News, db: Session | None):
+        """
+        Save the news content to a persistent storage.
+
+        This method takes a News namedtuple containing the title, URL, publication time, and content of a news article,
+        and saves it to a persistent storage, such as a database. The method should handle the storage of the news
+        content, ensuring that duplicate news articles are not saved.
+
+        :param news: A News namedtuple containing the title, URL, time, and content of the news article.
+        :param db: An instance of the database session to use for saving the news content.
+        """
+        return NotImplemented
+
+    def _is_valid_url(self, url: AnyHttpUrl | str) -> bool:
+        """
+        Check if the given URL belongs to the news website or its child URLs.
+
+        This method checks if the given URL belongs to the news_website_url or any of its child URLs. It returns True if
+        the URL is valid, and False otherwise.
+
+        :param url: The URL to be checked for validity.
+        :return: True if the URL is valid, False otherwise.
+        """
+        main_domain = tldextract.extract(self.news_website_url).registered_domain
+        url_domain = tldextract.extract(url).registered_domain
+
+        if url_domain == main_domain:
+            return True
+        return False
