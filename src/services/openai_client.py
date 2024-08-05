@@ -3,12 +3,22 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
+load_dotenv()
+api_key = os.getenv("OPENAI_API_KEY")
+
 
 class OpenAIClient:
-    def __init__(self, api_key: str):
-        self.client = OpenAI(api_key=api_key)
+    def __init__(self, _api_key: str):
+        self.client = OpenAI(api_key=_api_key)
 
-    def _generate_text(self, messages={}, model="gpt-3.5-turbo"):
+    def _generate_text(self, messages=None, model="gpt-3.5-turbo"):
+        if not messages:
+            messages = [
+                {
+                    "role": "system",
+                    "content": "你是一個對話機器人，請回答以下問題。",
+                }
+            ]
         completion = self.client.chat.completions.create(
             model=model,
             messages=messages,
@@ -46,7 +56,4 @@ class OpenAIClient:
         return openai_client._generate_text(messages=messages)
 
 
-load_dotenv()
-api_key = os.getenv("OPENAI_API_KEY")
-
-openai_client = OpenAIClient(api_key=api_key)
+openai_client = OpenAIClient(_api_key=api_key)

@@ -5,16 +5,19 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import delete, insert, select
 from sqlalchemy.orm import Session
 
-from ....models import NewsArticle, User, engine, user_news_association_table
-from ....schemas import (NewsArticleSchema, NewsSumaryRequestSchema,
-                         NewsSummarySchema, PromptRequest,
-                         SearchNewsArticleSchema)
-from ....services import UDNNewsScraper
-from ....services.openai_client import openai_client
+from app import NewsArticle, User, engine, user_news_association_table
+from app import (NewsArticleSchema, NewsSumaryRequestSchema,
+                 NewsSummarySchema, PromptRequest,
+                 SearchNewsArticleSchema)
+from app import UDNNewsScraper
+from src.services.openai_client import openai_client
 from .users import authenticate_user_token
 
 router = APIRouter()
+
+# scraper initialization
 udn_scraper = UDNNewsScraper.UDNNewsScraper()
+
 _id_counter = itertools.count(start=1000000)  # 從1000000開始以避免與現有的DB ID衝突
 
 

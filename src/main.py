@@ -25,7 +25,7 @@ sentry_sdk.init(
 app = FastAPI()
 
 app.add_middleware(
-    CORSMiddleware,
+    CORSMiddleware, # noqa
     allow_origins=["http://localhost:8080"],
     allow_credentials=True,
     allow_methods=["*"],
@@ -77,7 +77,7 @@ def shutdown_scheduler():
 
 @app.get("/sentry-debug")
 async def trigger_error():
-    division_by_zero = 1 / 0
+    division_by_zero = 1 / 0 # noqa
 
 
 app.include_router(api_router, prefix="/api/v1")
