@@ -28,8 +28,14 @@ class UDNScraper(NewsScraperBase):
         return self.get_headline(search_term, page=(1, 10))
 
     def get_headline(self, search_term: str, page: int | tuple[int, int]) -> list[Headline]:
+
+        # Calculate the range of pages to fetch news from.
+        # If 'page' is a tuple, unpack it and create a range representing those pages (inclusive).
+        # If 'page' is an int, create a list containing only that single page number.
         page_range = range(*page) if isinstance(page, tuple) else [page]
+
         headlines = [headline for p in page_range for headline in self._fetch_news(p, search_term)]
+
         return headlines
 
     def _fetch_news(self, page: int, search_term: str) -> list[Headline]:
@@ -67,7 +73,7 @@ class UDNScraper(NewsScraperBase):
         return self._extract_news(soup, url)
 
     @staticmethod
-    def _extract_news(soup, url) -> News:
+    def _extract_news(soup, url: str) -> News:
         title = soup.select_one("h1.article-content__title").text
         time = soup.select_one("time.article-content__time").text
         content = " ".join(p.text for p in soup.select("section.article-content__editor p") if p.text.strip())
