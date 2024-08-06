@@ -12,7 +12,7 @@ Headline = namedtuple(typename="NewsTitle", field_names=["title", "url"])
 News = namedtuple(typename="News", field_names=["title", "url", "time", "content"])
 
 
-class NewsScraperBase(metaclass=abc.ABCMeta):
+class NewsCrawlerBase(metaclass=abc.ABCMeta):
     news_website_url: AnyHttpUrl | str
     news_website_news_child_urls: list[AnyHttpUrl | str]
 
@@ -26,8 +26,9 @@ class NewsScraperBase(metaclass=abc.ABCMeta):
         This method searches through the entire news_website_url using the specified search term, and returns a list
         of Headline namedtuples, where each Headline includes the title and URL of a news article. The page parameter
         can be an integer representing a single page number or a tuple representing a range of page numbers to search
-        through. The offset and limit parameters apply to the resulting list of headlines, allowing you to skip a
-        certain number of headlines and limit the number of headlines returned, respectively.
+        through.
+        # The offset and limit parameters apply to the resulting list of headlines, allowing you to skip a
+        # certain number of headlines and limit the number of headlines returned, respectively.
 
         :param search_term: A search term to search for news articles.
         :param page: A page number (int) or a tuple of start and end page numbers (tuple[int, int]).
@@ -57,6 +58,7 @@ class NewsScraperBase(metaclass=abc.ABCMeta):
         return NotImplemented
 
     @staticmethod
+    @abc.abstractmethod
     def save(news: News, db: Session | None):
         """
         Save the news content to a persistent storage.
