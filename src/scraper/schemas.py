@@ -39,3 +39,17 @@ class NewsWithSummary(News):
         example="Reason of the article",
         description="The reason of the article"
     )
+
+# Example
+# headline = Headline(title="Title of the article", url="https://www.example.com")
+# headline.title
+# headline.url
+# news = News(title="Title of the article", url="https://www.example.com",
+#             time="2021-10-01T00:00:00", content="Content of the article")
+# news.time
+# news.content
+# news_with_summary = NewsWithSummary(title="Title of the article", url="https://www.example.com",
+#                                     time="2021-10-01T00:00:00", content="Content of the article",
+#                                     summary="Summary of the article", reason="Reason of the article")
+# news_with_summary.summary
+# news_with_summary.reason
