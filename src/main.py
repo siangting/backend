@@ -8,7 +8,8 @@ from sqlalchemy.orm import sessionmaker
 
 from .api.v1.router import api_router
 from .models import NewsArticle, engine
-from .services import UDNNewsScraper as UDNScraper
+from .crawler import UDNCrawler
+from .crawler.base import NewsWithSummary
 from .services.openai_client import openai_client
 
 sentry_sdk.init(
@@ -23,6 +24,8 @@ sentry_sdk.init(
 )
 
 app = FastAPI()
+scheduler = BackgroundScheduler()
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 app.add_middleware(
     CORSMiddleware, # noqa
@@ -32,31 +35,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-def fetch_news_task(is_initial=False):
+def fetch_news_task(is_init: bool = False):
+    db = SessionLocal()
     # should change into simple factory pattern
-    scraper = UDNScraper.UDNNewsScraper()
-    news_data = scraper.fetch_news_data("價格", is_initial=is_initial)
+    udn_crawler = UDNCrawler()
+    if is_init:
+        news_data = udn_crawler.startup("價格")
+    else:
+        news_data = udn_crawler.get_headline("價格", 1)
     for news in news_data:
         try:
-            relevance = openai_client.evaluate_relevance(news["title"])
+            relevance = openai_client.evaluate_relevance(news.title)
             if relevance == "high":
-                detailed_news = scraper.news_parser(news["titleLink"])
+                detailed_news = udn_crawler.parse(news.url)
                 if detailed_news:
-                    result = openai_client.generate_summary(
-                        " ".join(detailed_news["content"])
-                    )
+                    result = openai_client.generate_summary(detailed_news.content)
                     if result:
                         result = json.loads(result)
-                        detailed_news["summary"] = result["影響"]
-                        detailed_news["reason"] = result["原因"]
-                        scraper.save_news_content(detailed_news)
+                        news_with_summary = NewsWithSummary(
+                            title=detailed_news.title,
+                            url=detailed_news.url,
+                            time=detailed_news.time,
+                            content=detailed_news.content,
+                            summary=result.get("影響", ""),
+                            reason=result.get("原因", "")
+                        )
+                        print(news_with_summary)
+                        udn_crawler.save(news_with_summary, db)
+                        print(f"Saved news {detailed_news.url}")
         except Exception as e:
-            print(f"Error processing news {news['titleLink']}: {e}")
-
-
-scheduler = BackgroundScheduler()
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+            print(f"Error processing news {news.url}: {e}")
 
 
 @app.on_event("startup")
@@ -64,7 +72,7 @@ def start_scheduler():
     db = SessionLocal()
     if db.query(NewsArticle).count() == 0:
         # should change into simple factory pattern
-        fetch_news_task(is_initial=True)
+        fetch_news_task(is_init=True)
     db.close()
     scheduler.add_job(fetch_news_task, "interval", minutes=100)
     scheduler.start()

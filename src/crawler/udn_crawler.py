@@ -39,7 +39,7 @@ from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 
 from src.models import NewsArticle
-from .base import NewsCrawlerBase, Headline, News
+from .base import NewsCrawlerBase, Headline, News, NewsWithSummary
 from .exceptions import DomainMismatchException
 
 
@@ -70,13 +70,11 @@ class UDNCrawler(NewsCrawlerBase):
         # If 'page' is a tuple, unpack it and create a range representing those pages (inclusive).
         # If 'page' is an int, create a list containing only that single page number.
         page_range = range(*page) if isinstance(page, tuple) else [page]
-
         headlines = [
             headline
             for p in page_range
             for headline in self._fetch_news(p, search_term)
         ]
-
         return headlines
 
     def _fetch_news(self, page: int, search_term: str) -> list[Headline]:
@@ -99,6 +97,7 @@ class UDNCrawler(NewsCrawlerBase):
 
         if not params:
             params = {}
+
 
         try:
             response = requests.get(
@@ -133,13 +132,13 @@ class UDNCrawler(NewsCrawlerBase):
             for p in soup.select("section.article-content__editor p")
             if p.text.strip()
         )
-        return News(url=url, title=title, time=time, content=content)
+        return News(url=url, title=title, time=time, content=content, reason="", summary="")
 
-    def save(self, news: News, db: Session):
-        existing_news = db.query(News).filter_by(url=news.url).first()
+    def save(self, news: NewsWithSummary, db: Session):
+        existing_news = db.query(NewsArticle).filter_by(url=news.url).first()
         if not existing_news:
             new_article = NewsArticle(
-                url=news.url, title=news.title, time=news.time, content=news.content
+                url=news.url, title=news.title, time=news.time, content=news.content, summary=news.summary, reason=news.reason
             )
             db.add(new_article)
             self._commit_changes(db)

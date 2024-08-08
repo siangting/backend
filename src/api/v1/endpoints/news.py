@@ -16,7 +16,7 @@ from .users import authenticate_user_token
 router = APIRouter()
 
 # scraper initialization
-udn_scraper = UDNCrawler()
+udn_crawler = UDNCrawler()
 
 _id_counter = itertools.count(start=1000000)  # 從1000000開始以避免與現有的DB ID衝突
 
@@ -92,16 +92,16 @@ async def search_news(request: PromptRequest):
         if not keywords:
             return []
         # should change into simple factory pattern
-        news_items = udn_scraper.fetch_news_data(keywords, is_initial=False)
+        news_items = udn_crawler.get_headline(keywords, page=1)
         for news in news_items:
             try:
-                detailed_news = udn_scraper.news_parser(news["titleLink"])
+                detailed_news = udn_crawler.parse(news.url)
                 if detailed_news:
-                    detailed_news["content"] = " ".join(detailed_news["content"])
-                    detailed_news["id"] = next(_id_counter)
-                    news_list.append(detailed_news)
+                    detailed_news_dict = detailed_news.model_dump()
+                    detailed_news_dict["id"] = next(_id_counter)
+                    news_list.append(detailed_news_dict)
             except Exception as e:
-                print(f"Error processing news {news['titleLink']}: {e}")
+                print(f"Error processing news {news.url}: {e}")
         return sorted(news_list, key=lambda x: x["time"], reverse=True)
 
     except Exception as e:
