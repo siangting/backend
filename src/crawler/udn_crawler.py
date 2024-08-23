@@ -22,14 +22,12 @@ UDNCrawler Methods:
     __init__(self, timeout: int = 5): Initializes the crawler with a default timeout for HTTP requests.
     startup(self, search_term: str) -> list[Headline]: Fetches news headlines for a given search term across multiple pages.
     get_headline(self, search_term: str, page: int | tuple[int, int]) -> list[Headline]: Fetches news headlines for specified pages.
-    _fetch_news(self, page: int, search_term: str) -> list[Headline]: Helper method to fetch news headlines for a specific page.
-    _create_search_params(self, page: int, search_term: str): Creates the parameters for the search request.
-    _perform_request(self, params: dict): Performs the HTTP request to fetch news data.
-    _parse_headlines(response): Parses the response to extract headlines.
+    perform_request(self, params: dict): Performs the HTTP request to fetch news data.
+    parse_headlines(response): Parses the response to extract headlines.
     parse(self, url: str) -> News: Parses a news article from a given URL.
-    _extract_news(soup, url: str) -> News: Extracts news details from the BeautifulSoup object.
+    extract_news(soup, url: str) -> News: Extracts news details from the BeautifulSoup object.
     save(self, news: News, db: Session): Saves a news article to the database.
-    _commit_changes(db: Session): Commits the changes to the database with error handling.
+    commit_changes(db: Session): Commits the changes to the database with error handling.
 """
 
 from urllib.parse import quote
@@ -39,14 +37,13 @@ from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 
 from src.models import NewsArticle
-from .base import NewsCrawlerBase, Headline, News, NewsWithSummary
-from .exceptions import DomainMismatchException
+from .base import Headline, News, NewsWithSummary
 
 
-class UDNCrawler(NewsCrawlerBase):
+class UDNCrawler():
     CHANNEL_ID = 2
 
-    def __init__(self, timeout: int = 5) -> None:
+    def __init__(self, timeout = 5):
         self.news_website_url = "https://udn.com/api/more"
         self.timeout = timeout
 
@@ -60,44 +57,42 @@ class UDNCrawler(NewsCrawlerBase):
         :return: A list of Headline namedtuples containing the title and URL of news articles.
         :rtype: list[Headline]
         """
-        return self.get_headline(search_term, page=(1, 10))
-
-    def get_headline(
-        self, search_term: str, page: int | tuple[int, int]
-    ) -> list[Headline]:
-
-        # Calculate the range of pages to fetch news from.
-        # If 'page' is a tuple, unpack it and create a range representing those pages (inclusive).
-        # If 'page' is an int, create a list containing only that single page number.
-        page_range = range(*page) if isinstance(page, tuple) else [page]
-        headlines = [
-            headline
-            for p in page_range
-            for headline in self._fetch_news(p, search_term)
-        ]
+        headlines = []
+        for p in range(1, 10):
+            params = {
+                "page": p,
+                "id": f"search:{quote(search_term)}",
+                "channelId": self.CHANNEL_ID,
+                "type": "searchword",
+            }
+            response = self.perform_request(params=params)
+            headline_list = self.parse_headlines(response) if response else []
+            for headline in headline_list:
+                headlines.append(headline)
         return headlines
 
-    def _fetch_news(self, page: int, search_term: str) -> list[Headline]:
-        params = self._create_search_params(page, search_term)
-        response = self._perform_request(params=params)
-        return self._parse_headlines(response) if response else []
+    def get_headline(self, search_term, page):
+        headlines = []
+        page_range = range(*page) if isinstance(page, tuple) else [page]
+        for p in page_range:
+            params = {
+                "page": p,
+                "id": f"search:{quote(search_term)}",
+                "channelId": self.CHANNEL_ID,
+                "type": "searchword",
+            }
+            response = self.perform_request(params=params)
+            headline_list = self.parse_headlines(response) if response else []
+            for headline in headline_list:
+                headlines.append(headline)
+        return headlines
 
-    def _create_search_params(self, page: int, search_term: str) -> dict:
-        quote_search_term = quote(search_term)
-        return {
-            "page": page,
-            "id": f"search:{quote_search_term}",
-            "channelId": self.CHANNEL_ID,
-            "type": "searchword",
-        }
-
-    def _perform_request(self, url: str | None = None, params: dict | None = None) -> Response:
+    def perform_request(self, url = None, params = None) -> Response:
         if not url:
             url = self.news_website_url
 
         if not params:
             params = {}
-
 
         try:
             response = requests.get(
@@ -109,22 +104,20 @@ class UDNCrawler(NewsCrawlerBase):
             raise ConnectionError(f"Error fetching news: {e}") from e
 
     @staticmethod
-    def _parse_headlines(response: Response) -> list[Headline]:
+    def parse_headlines(response: Response):
         data = response.json().get("lists", [])
         return [
             Headline(title=article["title"], url=article["titleLink"])
             for article in data
         ]
 
-    def parse(self, url: str) -> News:
-        if not self._is_valid_url(url):
-            raise DomainMismatchException(url)
-        response = self._perform_request(url=url)
+    def parse(self, url):
+        response = self.perform_request(url=url)
         soup = BeautifulSoup(response.text, "html.parser")
-        return self._extract_news(soup, url)
+        return self.extract_news(soup, url)
 
     @staticmethod
-    def _extract_news(soup: BeautifulSoup, url: str) -> News:
+    def extract_news(soup: BeautifulSoup, url):
         title = soup.select_one("h1.article-content__title").text
         time = soup.select_one("time.article-content__time").text
         content = " ".join(
@@ -141,10 +134,10 @@ class UDNCrawler(NewsCrawlerBase):
                 url=news.url, title=news.title, time=news.time, content=news.content, summary=news.summary, reason=news.reason
             )
             db.add(new_article)
-            self._commit_changes(db)
+            self.commit_changes(db)
 
     @staticmethod
-    def _commit_changes(db: Session):
+    def commit_changes(db: Session):
         try:
             db.commit()
         except Exception as e:
@@ -152,3 +145,4 @@ class UDNCrawler(NewsCrawlerBase):
             raise RuntimeError(f"Error saving news to database: {e}") from e
         finally:
             db.close()
+

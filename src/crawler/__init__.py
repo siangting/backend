@@ -14,7 +14,6 @@ __license__ = "MIT"
 __version__ = "1.0.0"
 __email__ = "hank93513@gmail.com"
 
-from .base import NewsCrawlerBase, Headline, News
+from .base import Headline, News
 from .udn_crawler import UDNCrawler
-from .exceptions import DomainMismatchException
 

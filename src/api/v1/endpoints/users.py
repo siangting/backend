@@ -20,7 +20,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/users/login")
 
 
-def get_db():
+def session_opener():
     db = Session(bind=engine)
     try:
         yield db
@@ -28,23 +28,23 @@ def get_db():
         db.close()
 
 
-def get_user(db: Session, username: str):
-    return db.query(User).filter(User.username == username).first()
+def get_user(db: Session, name: str):
+    return db.query(User).filter(User.username == name).first()
 
 
-def verify_password(plain_password: str, hashed_password: str):
+def verify(plain_password: str, hashed_password: str):
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def authenticate_user(db: Session, username: str, password: str):
+def authenticate_user(db: Session, username: str, pwd: str):
     user = get_user(db, username)
-    if not user or not verify_password(password, user.hashed_password):
+    if not user or not verify(pwd, user.hashed_password):
         return False
     return user
 
 
 def authenticate_user_token(
-    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
+    token: str = Depends(oauth2_scheme), db: Session = Depends(session_opener)
 ):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -79,7 +79,7 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
 
 @router.post("/login", response_model=TokenSchema)
 async def login_for_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(session_opener)
 ):
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
@@ -96,7 +96,7 @@ async def login_for_access_token(
 
 
 @router.post("/register", response_model=UserSchema)
-def create_user(user: UserAuthSchema, db: Session = Depends(get_db)):
+def create_user(user: UserAuthSchema, db: Session = Depends(session_opener)):
     db_user = db.query(User).filter(User.username == user.username).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Username already registered")
